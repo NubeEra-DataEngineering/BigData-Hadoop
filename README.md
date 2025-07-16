@@ -1,28 +1,14 @@
-# BigData-Hadoop
-Ecosystem(Pig, Hive, HBase, Oozie, Zookeeper, etc)
+# Step 1: Start containers
+docker compose up -d
 
+# Step 2: Access Hive server container
+docker exec -it docker-hadoop-hive-parquet-hive-server-1 bash
 
+# Step 3: Connect to Hive using Beeline
+beeline -u jdbc:hive2://localhost:10000 -n hive
 
-Hadoop & Pig
-==============================
+# Step 4: Run queries
+SHOW DATABASES;
 
-# Pull the image
-
-```
-docker pull usiegj00/hadoop-pig
-```
-
-# Start a container
-
-In order to use the Docker image use:
-
-```
-docker run -i -t usiegj00/hadoop-pig /etc/bootstrap.sh -bash
-```
-
-# Test Pig
-
-Once the container has started, execute
-```
-pig -x local
-```
+# Step 5: Stop containers
+docker compose down
