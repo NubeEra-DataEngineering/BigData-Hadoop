@@ -26,54 +26,7 @@ project-root/
 
 ---
 
-## 🔧 1. Configure core-site.xml
-
-Create a directory `./hadoop-config/` and inside it, add a file `core-site.xml`:
-
-```xml
-<configuration>
-  <!-- Allow Oozie to impersonate other users -->
-  <property>
-    <name>hadoop.proxyuser.root.hosts</name>
-    <value>*</value>
-  </property>
-  <property>
-    <name>hadoop.proxyuser.root.groups</name>
-    <value>*</value>
-  </property>
-</configuration>
-```
-
----
-
-## 🐳 2. Docker Compose Setup
-
-Add this to your `docker-compose.yml`:
-
-```yaml
-oozie:
-  image: juanmartinez/oozie:5.2.0
-  container_name: oozie
-  ports:
-    - "11000:11000"
-  depends_on:
-    - zookeeper
-    - hive-metastore
-    - hive-server
-    - resourcemanager
-    - namenode
-    - datanode
-  volumes:
-    - ./hadoop-config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
-  environment:
-    SERVICE_PRECONDITION: "zookeeper:2181 hive-metastore:9083 hive-server:10000 resourcemanager:8088 namenode:50070 datanode:50075"
-```
-
-Make sure to also include the Hadoop containers like `namenode`, `datanode`, and `resourcemanager`.
-
----
-
-## 🚀 3. Start Containers
+## 🚀 1. Start Containers
 
 ```bash
 docker-compose up -d
@@ -81,7 +34,7 @@ docker-compose up -d
 
 ---
 
-## 📤 4. Upload Oozie Workflow to HDFS
+## 📤 2. Upload Oozie Workflow to HDFS
 
 Upload oozie-hive-wf folder to oozie container
 
@@ -104,7 +57,7 @@ hdfs dfs -put /opt/oozie/oozie-hive-wf /user/oozie-hive-wf/
 
 ---
 
-## 📝 5. Example job.properties
+## 📝 3. Example job.properties
 
 In `oozie-hive-wf/job.properties`, define:
 
@@ -118,47 +71,13 @@ oozie.use.system.libpath=true
 
 ---
 
-## ▶️ 6. Run Oozie Job
+## ▶️ 4. Run Oozie Job
 
 Inside the container:
 
 ```bash
 cd /opt/oozie/oozie-hive-wf
 oozie job -oozie http://localhost:11000/oozie -config job.properties -run
-```
-
-If you encounter this error:
-```
-User: root is not allowed to impersonate root
-```
-Make sure the `core-site.xml` file has the proxyuser configs and is mounted properly.
-
----
-
-## 🐞 7. Troubleshooting
-
-- **Kerberos Warnings**: You may see warnings related to Kerberos. These are usually safe to ignore if you're not using Kerberos.
-- **Impersonation Issues**: Confirm your `core-site.xml` has:
-  ```xml
-  <property>
-    <name>hadoop.proxyuser.root.hosts</name>
-    <value>*</value>
-  </property>
-  <property>
-    <name>hadoop.proxyuser.root.groups</name>
-    <value>*</value>
-  </property>
-  ```
-
----
-
-## 📦 Optional: Push Container to Docker Hub
-
-To tag and push your image:
-
-```bash
-docker tag your-custom-image username/oozie-custom:tag
-docker push username/oozie-custom:tag
 ```
 
 ---
