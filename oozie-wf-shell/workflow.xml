@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow-app xmlns="uri:oozie:workflow:0.5" name="hello-world-workflow">
+
+    <!-- Start Node -->
+    <start to="hello-node"/>
+
+    <!-- Action Node to run a shell script -->
+    <action name="hello-node">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <exec>action.sh</exec>
+            <argument>hello-world</argument>
+        </shell>
+        <ok to="end"/>
+        <error to="fail"/>
+    </action>
+
+    <!-- End Node -->
+    <end name="end"/>
+
+    <!-- Fail Node -->
+    <kill name="fail">
+        <message>Workflow failed, "hello-world" action did not complete successfully.</message>
+    </kill>
+
+</workflow-app>
