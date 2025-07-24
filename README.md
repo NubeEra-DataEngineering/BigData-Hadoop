@@ -1,197 +1,177 @@
-# 🐘 Dockerized Hadoop and Oozie Workflow Setup
+# 🧰 Oozie + Hadoop + Hive + Zookeeper - Dockerized Big Data Stack
 
-This repository provides a fully Dockerized environment for Hadoop and Oozie, including a working example of a shell-based Oozie workflow.
-
----
-
-## 📋 Table of Contents
-
-- [Prerequisites](#-prerequisites)
-- [Docker Compose Setup](#-docker-compose-setup)
-- [Start the Cluster](#-start-the-cluster)
-- [Proxy Configuration](#-proxy-configuration)
-- [Create Sample Oozie Workflow](#-create-sample-oozie-workflow)
-- [Run Oozie Workflow](#-run-oozie-workflow)
-- [Access Web Interfaces](#-access-web-interfaces)
-- [File Structure](#-file-structure)
-- [Summary](#-summary)
+This setup runs Apache Oozie with Hadoop HDFS, Hive, and Zookeeper using Docker Compose. It also supports uploading and running Oozie workflows.
 
 ---
 
-## 🛠️ Prerequisites
+## 📁 Folder Structure
 
-Ensure the following are installed:
+```
+project-root/
+├── docker-compose.yml
+├── hadoop-config/
+│   └── core-site.xml
+└── oozie-hive-wf/
+    ├── workflow.xml
+    └── job.properties
+```
 
-- [Docker](https://docs.docker.com/get-docker/)
+---
+
+## 📦 Prerequisites
+
+- Docker
 - Docker Compose
+- Basic familiarity with Hadoop and Oozie
 
-### Install Docker
+---
+
+## 🔧 1. Configure core-site.xml
+
+Create a directory `./hadoop-config/` and inside it, add a file `core-site.xml`:
+
+```xml
+<configuration>
+  <!-- Allow Oozie to impersonate other users -->
+  <property>
+    <name>hadoop.proxyuser.root.hosts</name>
+    <value>*</value>
+  </property>
+  <property>
+    <name>hadoop.proxyuser.root.groups</name>
+    <value>*</value>
+  </property>
+</configuration>
+```
+
+---
+
+## 🐳 2. Docker Compose Setup
+
+Add this to your `docker-compose.yml`:
+
+```yaml
+oozie:
+  image: juanmartinez/oozie:5.2.0
+  container_name: oozie
+  ports:
+    - "11000:11000"
+  depends_on:
+    - zookeeper
+    - hive-metastore
+    - hive-server
+    - resourcemanager
+    - namenode
+    - datanode
+  volumes:
+    - ./hadoop-config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+  environment:
+    SERVICE_PRECONDITION: "zookeeper:2181 hive-metastore:9083 hive-server:10000 resourcemanager:8088 namenode:50070 datanode:50075"
+```
+
+Make sure to also include the Hadoop containers like `namenode`, `datanode`, and `resourcemanager`.
+
+---
+
+## 🚀 3. Start Containers
 
 ```bash
-curl -fsSL https://get.docker.com | sudo sh
-🧱 Docker Compose Setup
-Create a file called docker-compose.yml with the following content:
+docker-compose up -d
+```
 
-yaml
-Copy
-Edit
-services:
-  hadoop-namenode:
-    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
-    container_name: hadoop-namenode
-    environment:
-      - CLUSTER_NAME=docker-hadoop
-    ports:
-      - "50070:50070"
-      - "8020:8020"
+---
 
-  hadoop-datanode:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
-    container_name: hadoop-datanode
-    environment:
-      - CLUSTER_NAME=docker-hadoop
-      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:8020
-    depends_on:
-      - hadoop-namenode
-    ports:
-      - "50075:50075"
+## 📤 4. Upload Oozie Workflow to HDFS
 
-  hadoop-oozie:
-    image: equemuelcompellon/hadoop-oozie
-    container_name: hadoop-oozie
-    command: oozied.sh run
-    ports:
-      - "11000:11000"
-    environment:
-      - FS_DEFAULTFS=hdfs://hadoop-namenode:8020
-      - YARN_RESOURCEMANAGER_ADDRESS=hadoop-namenode:8032
-      - OOZIE_HADOOP_USER_NAME=hadoop
-    depends_on:
-      - hadoop-namenode
-      - hadoop-datanode
-🚀 Start the Cluster
-Use the following commands to spin up the environment:
+Upload oozie-hive-wf folder to oozie container
 
-bash
-Copy
-Edit
-nano docker-compose.yml
-sudo docker compose up -d
-🔧 Proxy Configuration
-Update core-site.xml in both hadoop-namenode and hadoop-oozie containers to allow proxy user access.
+```bash
+docker cp ./oozie-hive-wf oozie:/opt/oozie/oozie-hive-wf
+```
 
-Edit in hadoop-namenode:
-bash
-Copy
-Edit
-sudo docker exec -it hadoop-namenode bash
-Inside the container, run:
+Enter the Oozie container:
 
-bash
-Copy
-Edit
-sed -i '/<\/configuration>/ i\
-<property>\n\
-  <name>hadoop.proxyuser.hdfs.hosts</name>\n\
-  <value>*</value>\n\
-</property>\n\
-\n\
-<property>\n\
-  <name>hadoop.proxyuser.hdfs.groups</name>\n\
-  <value>*</value>\n\
-</property>' /etc/hadoop/core-site.xml
-Then exit:
+```bash
+docker exec -it oozie bash
+```
 
-bash
-Copy
-Edit
-exit
-Edit in hadoop-oozie:
-bash
-Copy
-Edit
-sudo docker exec -it hadoop-oozie bash
-Run the same sed command as above, then exit:
+Upload workflow to HDFS:
 
-bash
-Copy
-Edit
-exit
-📂 Create Sample Oozie Workflow
-Enter NameNode container:
-bash
-Copy
-Edit
-sudo docker exec -it hadoop-namenode bash
-Create the workflow XML:
-bash
-Copy
-Edit
-cat > workflow.xml << 'EOF'
-<workflow-app name="sample-wf" xmlns="uri:oozie:workflow:0.5">
-    <start to="shell-action"/>
-    <action name="shell-action">
-        <shell xmlns="uri:oozie:shell-action:0.2">
-            <job-tracker>${jobTracker}</job-tracker>
-            <name-node>${nameNode}</name-node>
-            <exec>echo.sh</exec>
-            <file>echo.sh</file>
-        </shell>
-        <ok to="end"/>
-        <error to="fail"/>
-    </action>
-    <kill name="fail">
-        <message>Action failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
-    </kill>
-    <end name="end"/>
-</workflow-app>
-EOF
-Create the shell script:
-bash
-Copy
-Edit
-cat > echo.sh << 'EOF'
-#!/bin/bash
-echo "Hello from Oozie Shell Action"
-EOF
+```bash
+hdfs dfs -mkdir -p /user/oozie-hive-wf
+hdfs dfs -put /opt/oozie/oozie-hive-wf /user/oozie-hive-wf/
+```
 
-chmod +x echo.sh
-Upload to HDFS:
-bash
-Copy
-Edit
-hdfs dfs -mkdir -p /user/hadoop/workflow-app
-hdfs dfs -put workflow.xml /user/hadoop/workflow-app/
-hdfs dfs -put echo.sh /user/hadoop/workflow-app/
+---
 
-hdfs dfs -mkdir -p /user/hadoop/oozie-apps/shell
-hdfs dfs -put workflow.xml echo.sh /user/hadoop/oozie-apps/shell/
-Exit the container:
+## 📝 5. Example job.properties
 
-bash
-Copy
-Edit
-exit
-▶️ Run Oozie Workflow
-Enter Oozie container:
-bash
-Copy
-Edit
-sudo docker exec -it hadoop-oozie bash
-cd /tmp
-Create job.properties file:
-bash
-Copy
-Edit
-cat > job.properties << 'EOF'
-nameNode=hdfs://hadoop-namenode:8020
-jobTracker=hadoop-namenode:8032
+In `oozie-hive-wf/job.properties`, define:
+
+```properties
+nameNode=hdfs://namenode:8020
+jobTracker=resourcemanager:8032
 queueName=default
-oozie.wf.application.path=${nameNode}/user/hadoop/oozie-apps/shell
+oozie.wf.application.path=${nameNode}/user/oozie-hive-wf/oozie-hive-wf
 oozie.use.system.libpath=true
-EOF
-Submit the job:
-bash
-Copy
-Edit
+```
+
+---
+
+## ▶️ 6. Run Oozie Job
+
+Inside the container:
+
+```bash
+cd /opt/oozie/oozie-hive-wf
 oozie job -oozie http://localhost:11000/oozie -config job.properties -run
+```
+
+If you encounter this error:
+```
+User: root is not allowed to impersonate root
+```
+Make sure the `core-site.xml` file has the proxyuser configs and is mounted properly.
+
+---
+
+## 🐞 7. Troubleshooting
+
+- **Kerberos Warnings**: You may see warnings related to Kerberos. These are usually safe to ignore if you're not using Kerberos.
+- **Impersonation Issues**: Confirm your `core-site.xml` has:
+  ```xml
+  <property>
+    <name>hadoop.proxyuser.root.hosts</name>
+    <value>*</value>
+  </property>
+  <property>
+    <name>hadoop.proxyuser.root.groups</name>
+    <value>*</value>
+  </property>
+  ```
+
+---
+
+## 📦 Optional: Push Container to Docker Hub
+
+To tag and push your image:
+
+```bash
+docker tag your-custom-image username/oozie-custom:tag
+docker push username/oozie-custom:tag
+```
+
+---
+
+## 📬 Connect
+
+- Oozie Web UI: [http://localhost:11000/oozie](http://localhost:11000/oozie)
+- HDFS UI (NameNode): [http://localhost:50070](http://localhost:50070)
+
+---
+
+## ✅ Next Steps
+
+- Create Hive actions in your workflows
+- Integrate Spark or Pig jobs
+- Automate workflow uploads and runs via script
