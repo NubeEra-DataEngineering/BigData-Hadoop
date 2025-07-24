@@ -1,15 +1,12 @@
 # BigData-Hadoop
-Ecosystem(Pig, Hive, HBase, Oozie, Zookeeper, etc)
 
+Running PySpark Job
+===================
 
-
-Hadoop & Pig
-==============================
-
-# Pull the image
+# Build the image
 
 ```
-docker pull usiegj00/hadoop-pig
+docker build -t pyspark-image .
 ```
 
 # Start a container
@@ -17,12 +14,5 @@ docker pull usiegj00/hadoop-pig
 In order to use the Docker image use:
 
 ```
-docker run -i -t usiegj00/hadoop-pig /etc/bootstrap.sh -bash
-```
-
-# Test Pig
-
-Once the container has started, execute
-```
-pig -x local
+docker run --rm -v $(pwd):/workspace -it --memory 6g --cpus 2 pyspark-container /opt/spark/bin/spark-submit /workspace/my_pyspark_job.py
 ```
