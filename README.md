@@ -144,10 +144,6 @@ chmod +x echo.sh
 Upload to HDFS:
 
 ```bash
-hdfs dfs -mkdir -p /user/hadoop/workflow-app
-hdfs dfs -put workflow.xml /user/hadoop/workflow-app/
-hdfs dfs -put echo.sh /user/hadoop/workflow-app/
-
 hdfs dfs -mkdir -p /user/hadoop/oozie-apps/shell
 hdfs dfs -put workflow.xml echo.sh /user/hadoop/oozie-apps/shell/
 ```
