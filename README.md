@@ -1,15 +1,12 @@
-# BigData-Hadoop
+# Running PySpark Job
 
-Running PySpark Job
-===================
-
-# Build the image
+## Build the image
 
 ```
 docker build -t pyspark-image .
 ```
 
-# Start a container
+## Start a container
 
 In order to use the Docker image use:
 
