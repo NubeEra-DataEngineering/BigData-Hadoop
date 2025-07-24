@@ -7,13 +7,15 @@ This setup runs Apache Oozie with Hadoop HDFS, Hive, and Zookeeper using Docker 
 ## 📁 Folder Structure
 
 ```
-project-root/
+.
 ├── docker-compose.yml
-├── hadoop-config/
-│   └── core-site.xml
-└── oozie-hive-wf/
-    ├── workflow.xml
-    └── job.properties
+└── oozie-wf-shell
+    ├── action.sh
+    ├── job.properties
+    └── workflow.xml
+├── README.md
+└── hadoop-config
+    └── core-site.xml
 ```
 
 ---
@@ -26,6 +28,7 @@ project-root/
 
 ---
 
+
 ## 🚀 1. Start Containers
 
 ```bash
@@ -36,47 +39,24 @@ docker-compose up -d
 
 ## 📤 2. Upload Oozie Workflow to HDFS
 
-Upload oozie-hive-wf folder to oozie container
+Upload oozie-shell-wf folder to HDFS:
 
 ```bash
-docker cp ./oozie-hive-wf oozie:/opt/oozie/oozie-hive-wf
-```
-
-Enter the Oozie container:
-
-```bash
-docker exec -it oozie bash
-```
-
-Upload workflow to HDFS:
-
-```bash
-hdfs dfs -mkdir -p /user/oozie-hive-wf
-hdfs dfs -put /opt/oozie/oozie-hive-wf /user/oozie-hive-wf/
-```
-
----
-
-## 📝 3. Example job.properties
-
-In `oozie-hive-wf/job.properties`, define:
-
-```properties
-nameNode=hdfs://namenode:8020
-jobTracker=resourcemanager:8032
-queueName=default
-oozie.wf.application.path=${nameNode}/user/oozie-hive-wf/oozie-hive-wf
-oozie.use.system.libpath=true
+hdfs dfs -mkdir -p /user/hadoop/oozie-apps/shell
+hdfs dfs -put workflow.xml echo.sh /user/hadoop/oozie-apps/shell/
 ```
 
 ---
 
 ## ▶️ 4. Run Oozie Job
 
-Inside the container:
+Inside the container Run Oozie Job:
 
 ```bash
-cd /opt/oozie/oozie-hive-wf
+docker exec -it hadoop-oozie bash
+
+cd oozie-wf-shell/
+chmod +x echo.sh
 oozie job -oozie http://localhost:11000/oozie -config job.properties -run
 ```
 
@@ -88,9 +68,3 @@ oozie job -oozie http://localhost:11000/oozie -config job.properties -run
 - HDFS UI (NameNode): [http://localhost:50070](http://localhost:50070)
 
 ---
-
-## ✅ Next Steps
-
-- Create Hive actions in your workflows
-- Integrate Spark or Pig jobs
-- Automate workflow uploads and runs via script

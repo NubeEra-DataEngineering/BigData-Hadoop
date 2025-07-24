@@ -1,116 +1,40 @@
-version: "3"
-
 services:
-  namenode:
+  hadoop-namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
-    volumes:
-      - namenode:/hadoop/dfs/name
-      - ./hadoop-config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+    container_name: hadoop-namenode
     environment:
-      - CLUSTER_NAME=test
-    env_file:
-      - ./hadoop-hive.env
+      - CLUSTER_NAME=docker-hadoop
     ports:
       - "50070:50070"
-
-
-  datanode:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
+      - "8020:8020"
     volumes:
-      - datanode:/hadoop/dfs/data
-    env_file:
-      - ./hadoop-hive.env
+      - ./hadoop-config/core-site.xml:/etc/hadoop/core-site.xml:ro
+
+  hadoop-datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
+    container_name: hadoop-datanode
     environment:
-      SERVICE_PRECONDITION: "namenode:50070"
+      - CLUSTER_NAME=docker-hadoop
+      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:8020
+    depends_on:
+      - hadoop-namenode
     ports:
       - "50075:50075"
-
-  resourcemanager:
-    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop2.7.4-java8
-    env_file:
-      - ./hadoop-hive.env
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode:50075"
-
-  hive-metastore-postgresql:
-    image: bde2020/hive-metastore-postgresql:2.3.0
-    ports:
-      - "5432:5432"
-
-  hive-metastore:
-    image: bde2020/hive:2.3.2-postgresql-metastore
-    command: /opt/hive/bin/hive --service metastore
-    env_file:
-      - ./hadoop-hive.env
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432 resourcemanager:8088"
-    ports:
-      - "9083:9083"
-
-  hive-server:
-    image: bde2020/hive:2.3.2-postgresql-metastore
-    env_file:
-      - ./hadoop-hive.env
-    environment:
-      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
-      SERVICE_PRECONDITION: "hive-metastore:9083"
-    ports:
-      - "10000:10000"
-
-  huedb:
-    image: postgres:12.1-alpine
     volumes:
-      - pg_data:/var/lib/postgresql/data/
-    env_file:
-      - ./hadoop-hive.env
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432 resourcemanager:8088 hive-metastore:9083"
-    ports:
-      - "5433:5432"
+      - ./hadoop-config/core-site.xml:/etc/hadoop/core-site.xml:ro
 
-  hue:
-    image: gethue/hue:4.6.0
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432 resourcemanager:8088 hive-metastore:9083 huedb:5433"
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./hue-overrides.ini:/usr/share/hue/desktop/conf/hue-overrides.ini
-    links:
-      - huedb
-
-  hbase:
-    image: harisekhon/hbase
-    ports:
-      - "16010:16010"
-      - "9090:9090"
-    environment:
-      - HBASE_MASTER=localhost
-
-  zookeeper:
-    image: zookeeper:3.8
-    restart: always
-    ports:
-      - "2181:2181"
-
-  oozie:
-    image: juanmartinez/oozie:5.2.0
-    container_name: oozie
+  hadoop-oozie:
+    image: equemuelcompellon/hadoop-oozie
+    container_name: hadoop-oozie
+    command: oozied.sh run
     ports:
       - "11000:11000"
-    volumes:
-      - ./hadoop-config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
-    depends_on:
-      - zookeeper
-      - hive-metastore
-      - hive-server
-      - resourcemanager
-      - namenode
-      - datanode
     environment:
-      SERVICE_PRECONDITION: "zookeeper:2181 hive-metastore:9083 hive-server:10000 resourcemanager:8088 namenode:50070 datanode:50075"
-
-volumes:
-  namenode:
-  datanode:
-  pg_data:
+      - FS_DEFAULTFS=hdfs://hadoop-namenode:8020
+      - YARN_RESOURCEMANAGER_ADDRESS=hadoop-namenode:8032
+      - OOZIE_HADOOP_USER_NAME=hadoop
+    depends_on:
+      - hadoop-namenode
+      - hadoop-datanode
+    volumes:
+      - ./hadoop-config/core-site.xml:/etc/hadoop/core-site.xml:ro
