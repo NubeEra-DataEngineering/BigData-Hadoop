@@ -1,3 +1,4 @@
+version: '3'
 services:
   hadoop-namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
@@ -5,10 +6,8 @@ services:
     environment:
       - CLUSTER_NAME=docker-hadoop
     ports:
-      - "50070:50070"
-      - "8020:8020"
-    volumes:
-      - ./hadoop-config/core-site.xml:/etc/hadoop/core-site.xml:ro
+      - "50070:50070"   # NameNode web UI
+      - "8020:8020"     # HDFS RPC
 
   hadoop-datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
@@ -19,16 +18,51 @@ services:
     depends_on:
       - hadoop-namenode
     ports:
-      - "50075:50075"
-    volumes:
-      - ./hadoop-config/core-site.xml:/etc/hadoop/core-site.xml:ro
+      - "50075:50075"   # DataNode web UI
+
+  postgres:
+    image: postgres:12
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=metastore
+      - POSTGRES_USER=hive
+      - POSTGRES_PASSWORD=hive
+    ports:
+      - "5432:5432"
+
+  hive-metastore:
+    image: bde2020/hive-metastore-postgresql:2.3.0
+    container_name: hive-metastore
+    environment:
+      - HIVE_METASTORE_DB_TYPE=postgres
+      - HIVE_METASTORE_DB_HOST=postgres
+      - HIVE_METASTORE_DB_NAME=metastore
+      - HIVE_METASTORE_DB_USER=hive
+      - HIVE_METASTORE_DB_PASS=hive
+      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:8020
+    depends_on:
+      - hadoop-namenode
+      - postgres
+    ports:
+      - "9083:9083"  # Hive Metastore thrift
+
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-server
+    environment:
+      - HIVE_METASTORE_URI=thrift://hive-metastore:9083
+      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:8020
+    depends_on:
+      - hive-metastore
+    ports:
+      - "10000:10000"  # HiveServer2 JDBC port
 
   hadoop-oozie:
     image: equemuelcompellon/hadoop-oozie
     container_name: hadoop-oozie
     command: oozied.sh run
     ports:
-      - "11000:11000"
+      - "11000:11000"  # Oozie Web UI
     environment:
       - FS_DEFAULTFS=hdfs://hadoop-namenode:8020
       - YARN_RESOURCEMANAGER_ADDRESS=hadoop-namenode:8032
@@ -36,5 +70,4 @@ services:
     depends_on:
       - hadoop-namenode
       - hadoop-datanode
-    volumes:
-      - ./hadoop-config/core-site.xml:/etc/hadoop/core-site.xml:ro
+      - hive-server
